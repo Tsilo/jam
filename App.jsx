@@ -1,10 +1,28 @@
 import React from 'react'
+import Player from "./Components/Player.jsx";
+import PeersList from "./Components/PeersList.jsx";
+import Playlist from "./Components/Playlist.jsx";
 
 export default function App() {
 	return (
-		<div className="p-6 text-center mt-20 h-full">
-			zd reload
-			<h1 className="text-3xl font-bold">Hello from React + Tailwind v4 + Pear!</h1>
+		<div className="grid grid-cols-3 gap-2 size-full">
+			<div className="col-span-2">
+				<h1 className="text-lg font-bold">Party together</h1>
+				<Player/>
+			</div>
+			<div className="grid border-s p-2">
+				<div className="row-span-2">
+
+
+					<Playlist/>
+				</div>
+				<div>
+
+					<h2 className="text-lg font-bold">Peers</h2>
+					<PeersList/>
+				</div>
+			</div>
+
 		</div>
 	)
 }
