@@ -4,6 +4,7 @@ import PeersList from "./Components/PeersList.jsx";
 import Playlist from "./Components/Playlist.jsx";
 
 export default function App() {
+
 	return (
 		<div className="grid grid-cols-3 gap-2 size-full">
 			<div className="col-span-2">

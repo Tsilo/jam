@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "b4a": "^1.6.7",
+    "bare-fetch": "^2.4.1",
     "hypercore": "^11.11.0",
     "hypercore-crypto": "^3.6.1",
     "hyperswarm": "^4.12.1",
