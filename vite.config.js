@@ -1,8 +1,15 @@
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from "@tailwindcss/vite";
 
-const bareModules =[
+const bareModules = [
 	// Bare runtime modules
+	'hyperswarm',
+	'hypercore-crypto',
+	'hypercore',
+	'hyperdrive',
+	'hyperbee',
+	'b4a',
 	'bare-fs',
 	'bare-path',
 	'bare-fetch',
@@ -18,16 +25,20 @@ const bareModules =[
 	'pear',
 
 ];
-export default {
-	plugins: [react(), tailwindcss()],
-	base: '',
-	build: {
-		outDir: 'dist',
-		rollupOptions: {
-			external: bareModules,
-		}
-	},
-	optimizeDeps: {
-		exclude: bareModules
-	}
-};
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  base: '',
+  build: {
+    sourcemap: true, // Enable source maps for production builds
+    outDir: 'dist',
+    rollupOptions: {
+      external: bareModules,
+      output: {
+        sourcemap: true, // Ensure source maps are generated for chunks
+      }
+    }
+  },
+  optimizeDeps: {
+    exclude: bareModules
+  }
+});
