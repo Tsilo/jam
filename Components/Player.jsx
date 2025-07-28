@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import usePeers from "../hooks/usePeers.jsx";
+import { useUsersStore } from "../stores/useUsersStore";
 
 const WHITE_KEYS = [
   "a",
@@ -26,10 +26,21 @@ const WHITE_KEYS = [
 ];
 
 const Player = () => {
-  const { peers } = usePeers();
+  const users = useUsersStore((state) => Array.from(state.users.values()));
+
   const handleKey = (index) => {
     console.log("Clicked note:", index);
-    for (const peer of peers) peer.write("send pressed key: " + index);
+
+    users.forEach((user) => {
+      if (user.connection && user.connection.writable) {
+        user.connection.write(
+          JSON.stringify({
+            type: "piano-key",
+            payload: { keyIndex: index },
+          }),
+        );
+      }
+    });
   };
   const handleKeyDown = (e) => {
     e.stopPropagation();
@@ -45,7 +56,7 @@ const Player = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [peers]);
+  }, [users]);
 
   return (
     <div className="m-4">

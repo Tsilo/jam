@@ -1,15 +1,37 @@
 import React, { useState } from "react";
 import Button from "../ui/Button.jsx";
+import { useMessagesStore } from "../../stores/useMessagesStore";
+import { useUsersStore } from "../../stores/useUsersStore";
 
-const TextInput = ({ onSendMessage }) => {
+const TextInput = () => {
   const [message, setMessage] = useState("");
+  const addMessage = useMessagesStore((state) => state.addMessage);
+  const users = useUsersStore((state) => state.users);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (message.trim()) {
-      onSendMessage && onSendMessage(message);
-      setMessage("");
-    }
+    if (!message.trim()) return;
+
+    const newMessage = {
+      text: message,
+      isCurrentUser: true,
+      sender: "You",
+      timestamp: new Date().toISOString(),
+    };
+    addMessage(newMessage);
+
+    users.forEach((user) => {
+      if (user.connection && user.connection.writable) {
+        user.connection.write(
+          JSON.stringify({
+            type: "chat-message",
+            payload: newMessage,
+          }),
+        );
+      }
+    });
+
+    setMessage("");
   };
 
   return (

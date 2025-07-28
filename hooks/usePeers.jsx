@@ -1,11 +1,11 @@
-import {useContext} from 'react'
-import {PeersContext} from '../context/peers.jsx'
+import { useContext } from "react";
+import { PeersContext } from "../state/peers.jsx";
 
 export default () => {
-	const context = useContext(PeersContext)
-	if (context === undefined) {
-		throw new Error('useUser must be used within a UserProvider')
-	}
+  const context = useContext(PeersContext);
+  if (context === undefined) {
+    throw new Error("useUser must be used within a UserProvider");
+  }
 
-	return context
-}
+  return context;
+};

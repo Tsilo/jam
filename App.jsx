@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Player from "./Components/Player.jsx";
 import UsersList from "./Components/UsersList.jsx";
 import UsernameModal from "./Components/UsernameModal.jsx";
 import Chat from "./Components/Chat/Chat.jsx";
+import { useHyperswarm } from "./hooks/useHyperswarm";
 
 export default function App() {
+  useHyperswarm();
+
   return (
     <div className="grid grid-cols-3 size-full grid-rows-[auto_1fr_auto]">
       <div className="min-h-0 col-span-2 border-b p-2">

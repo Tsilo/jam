@@ -27,14 +27,17 @@ const bareModules = [
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "",
+  minify: false,
   build: {
     sourcemap: "inline",
     outDir: "dist",
+    minify: false,
+    terserOptions: {
+      compress: false,
+      mangle: false,
+    },
     rollupOptions: {
       external: bareModules,
-      output: {
-        sourcemap: true,
-      },
     },
   },
   optimizeDeps: {

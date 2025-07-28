@@ -14,8 +14,6 @@ const UsernameModal = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (link.trim()) {
-      // Handle the link submission here
-      console.log("Link submitted:", link);
       closeModal();
     }
   };
