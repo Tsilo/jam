@@ -48,7 +48,7 @@ const Player = () => {
   }, [peers]);
 
   return (
-    <div>
+    <div className="m-4">
       <svg
         className="w-full"
         viewBox="245.46566772460938 390.672607421875 510.0000915527344 98"
