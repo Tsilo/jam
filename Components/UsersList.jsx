@@ -4,9 +4,6 @@ const UsersList = () => {
 
   return (
     <div className="space-y-2 p-2">
-      <h3 className="font-semibold text-sm text-gray-600">
-        Connected Peers ({users.size})
-      </h3>
       <ul className="space-y-1">
         {users.size > 0 ? (
           Array.from(users.entries()).map(([publicKey, user]) => (
@@ -22,7 +19,7 @@ const UsersList = () => {
           ))
         ) : (
           <li className="text-sm text-gray-500 italic">
-            No peers connected yet
+            No peers has connected yet
           </li>
         )}
       </ul>

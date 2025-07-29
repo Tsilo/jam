@@ -26,21 +26,22 @@ const WHITE_KEYS = [
 ];
 
 const Player = () => {
-  const users = useUsersStore((state) => Array.from(state.users.values()));
-
+  const users = useUsersStore((state) => state.users);
+  //let users = [];
+  console.log(users);
   const handleKey = (index) => {
     console.log("Clicked note:", index);
-
-    users.forEach((user) => {
-      if (user.connection && user.connection.writable) {
-        user.connection.write(
-          JSON.stringify({
-            type: "piano-key",
-            payload: { keyIndex: index },
-          }),
-        );
-      }
-    });
+    users.size > 0 &&
+      users.values().forEach((user) => {
+        if (user.connection && user.connection.writable) {
+          user.connection.write(
+            JSON.stringify({
+              type: "piano-key",
+              payload: { keyIndex: index },
+            }),
+          );
+        }
+      });
   };
   const handleKeyDown = (e) => {
     e.stopPropagation();

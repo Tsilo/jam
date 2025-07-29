@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Hyperswarm from "hyperswarm";
 import hic from "hypercore-id-encoding";
 import { useUsersStore } from "../stores/useUsersStore";
@@ -8,12 +8,13 @@ export const useHyperswarm = (
   topic = "23337a386673415371314f315a6d386f504576774259624e32446a7377393752",
 ) => {
   const { addUser, removeUser } = useUsersStore();
+  const [loaded, setLoaded] = useState(false);
   const hyperswarm = useRef(null);
 
-  useEffect(() => {
+  useEffect(async () => {
     const swarm = new Hyperswarm();
     hyperswarm.current = swarm;
-
+    console.log("init swarm", swarm);
     Pear.teardown(async () => {
       if (swarm) {
         await swarm.destroy();
@@ -50,6 +51,10 @@ export const useHyperswarm = (
         console.log("[swarm update]", info);
       });
 
+      conn.on("error", () => {
+        console.log("[swarm error]", info);
+      });
+
       conn.on("close", () => {
         console.log(`[connection left] ${publicKey}`);
         removeUser(publicKey);
@@ -62,9 +67,13 @@ export const useHyperswarm = (
       server: true,
       client: true,
     });
+    await discovery.flushed();
+    setLoaded(true);
+    console.log("swarm loaded", discovery);
   }, [topic, addUser, removeUser]);
 
   return {
     swarm: hyperswarm.current,
+    loaded,
   };
 };

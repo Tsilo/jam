@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export const useUsersStore = create((set) => ({
+  me: {},
   users: new Map(),
   addUser: (publicKey, userData) =>
     set((state) => {
@@ -14,4 +15,8 @@ export const useUsersStore = create((set) => ({
       newUsers.delete(publicKey);
       return { users: newUsers };
     }),
+  setMe: (me) =>
+    set(() => ({
+      me,
+    })),
 }));

@@ -5,12 +5,12 @@ export const useMessagesStore = create((set) => ({
   addMessage: (message) =>
     set((state) => ({
       messages: [
-        ...state.messages,
         {
           ...message,
           id: Date.now(),
           timestamp: new Date().toISOString(),
         },
+        ...state.messages,
       ],
     })),
 }));

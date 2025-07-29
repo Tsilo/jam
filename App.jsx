@@ -4,11 +4,20 @@ import UsersList from "./Components/UsersList.jsx";
 import UsernameModal from "./Components/UsernameModal.jsx";
 import Chat from "./Components/Chat/Chat.jsx";
 import { useHyperswarm } from "./hooks/useHyperswarm";
+import Loader from "./Components/Loader.jsx";
+import { useUsersStore } from "./stores/useUsersStore.js";
 
 export default function App() {
-  useHyperswarm();
-
-  return (
+  const { loaded, swarm } = useHyperswarm();
+  const { setMe } = useUsersStore();
+  useEffect(() => {
+    if (loaded && swarm) {
+      setMe({
+        publicKey: swarm?.keyPair?.publicKey?.toString("hex") || "no-key",
+      });
+    }
+  }, [loaded, swarm]);
+  return loaded ? (
     <div className="grid grid-cols-3 size-full grid-rows-[auto_1fr_auto]">
       <div className="min-h-0 col-span-2 border-b p-2">
         <h1 className="text-lg font-bold">Chat</h1>
@@ -24,11 +33,14 @@ export default function App() {
       </div>
       <div className="grid border-s p-2  overflow-y-scroll">
         <UsersList />
-        <div className="h-[600px] overflow-y-scroll">zd</div>
       </div>
       <div className="col-span-3 border-t min-h-0">
         <Player />
       </div>
+    </div>
+  ) : (
+    <div className="size-full flex items-center justify-center">
+      <Loader size="size-12" />
     </div>
   );
 }

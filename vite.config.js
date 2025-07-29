@@ -28,8 +28,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   base: "",
   minify: false,
+  minifyInternalExports: false,
   build: {
-    sourcemap: "inline",
+    target: "esnext",
+    sourcemap: true,
     outDir: "dist",
     minify: false,
     terserOptions: {
@@ -38,6 +40,9 @@ export default defineConfig({
     },
     rollupOptions: {
       external: bareModules,
+      output: {
+        compact: false,
+      },
     },
   },
   optimizeDeps: {

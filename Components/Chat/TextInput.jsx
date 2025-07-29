@@ -7,6 +7,7 @@ const TextInput = () => {
   const [message, setMessage] = useState("");
   const addMessage = useMessagesStore((state) => state.addMessage);
   const users = useUsersStore((state) => state.users);
+  const me = useUsersStore((state) => state.me);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -15,7 +16,7 @@ const TextInput = () => {
     const newMessage = {
       text: message,
       isCurrentUser: true,
-      sender: "You",
+      sender: me.name || me.publicKey,
       timestamp: new Date().toISOString(),
     };
     addMessage(newMessage);
