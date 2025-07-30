@@ -32,12 +32,12 @@ const TextInput = () => {
 
   return (
     <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
-      <div className="flex gap-2 ">
+      <div className="flex ">
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Type a message..."
-          className="w-full border border-gray-300 rounded-lg p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 "
+          className="w-full border border-gray-300 rounded-s-lg p-3 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 "
           rows="1"
           onKeyDown={(e) => {
             e.stopPropagation();
@@ -48,7 +48,11 @@ const TextInput = () => {
           }}
         />
 
-        <Button disabled={!message.trim()} type="submit">
+        <Button
+          disabled={!message.trim()}
+          type="submit"
+          className="rounded-s-none"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="h-5 w-5"

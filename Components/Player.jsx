@@ -195,11 +195,8 @@ const Piano = () => {
 
   return (
     <div tabIndex="1" className="flex flex-col justify-center items-center">
-      <div className="px-2 pt-2 w-full">
-        <svg
-          viewBox={`0 0 ${21 * 40 + 40} 240`}
-          className="bg-gray-200 rounded-lg w-full"
-        >
+      <div className="w-full">
+        <svg viewBox={`0 0 ${21 * 40 + 40} 240`} className="bg-gray-200 w-full">
           {/* Piano body */}
           <rect
             x={10}
@@ -273,16 +270,16 @@ const Piano = () => {
       </div>
 
       {/* Instructions */}
-      <div className="my-1 text-center text-gray-300 flex items-center gap-4 text-xs">
+      <div className="my-1 text-center px-3 flex items-center gap-4 text-xs">
         <p className="">Keyboard Controls:</p>
 
-        <span className="bg-gray-800 px-2 py-1 rounded">
+        <span className="bg-gray-200 px-2 py-1 rounded">
           A S D F G H J K L ;
         </span>
-        <span className="bg-gray-800 px-2 py-1 rounded">
+        <span className="bg-gray-200 px-2 py-1 rounded">
           W E T Y U I O (black keys)
         </span>
-        <span className="bg-blue-600 px-2 py-1 rounded">
+        <span className="bg-blue-200 px-2 py-1 rounded">
           1 2 3 (octave switch)
         </span>
       </div>
