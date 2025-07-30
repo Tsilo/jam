@@ -1,34 +1,49 @@
 import React, { useState, useEffect } from "react";
 import { useUsersStore } from "../stores/useUsersStore.js";
 import { usePianoStore } from "../stores/usePianoStore.js";
+import { playNote } from "../utils/audioUtils";
 
 const Piano = () => {
   const me = useUsersStore((state) => state.me);
   const sendToAllUsers = useUsersStore((state) => state.sendToAllUsers);
   const peerKeys = usePianoStore((state) => state.pressedKey);
-  console.log("received peer keys", peerKeys);
+  useEffect(() => {
+    if (peerKeys) {
+      handleKey(peerKeys.keyNumber, peerKeys.color, false);
+    }
+  }, [peerKeys]);
+
   const fillColor = me?.color || "#3B82F6";
 
-  const [pressedKeys, setPressedKeys] = useState(new Set());
+  const [pressedKeys, setPressedKeys] = useState(new Map());
   const [currentOctave, setCurrentOctave] = useState(1);
 
-  const handleKey = (keyNumber) => {
+  const handleKey = (keyNumber, color, send = true) => {
+    // Play the note
+    playNote(keyNumber);
+
     // Add visual feedback
-    setPressedKeys((prev) => new Set(prev).add(keyNumber));
+    setPressedKeys((prev) => {
+      let tmp = new Map(prev);
+      tmp.set(keyNumber, color || fillColor);
+      return tmp;
+    });
 
     // Remove the visual effect after a short delay
     setTimeout(() => {
       setPressedKeys((prev) => {
-        const newSet = new Set(prev);
+        const newSet = new Map(prev);
         newSet.delete(keyNumber);
         return newSet;
       });
     }, 200);
-    sendToAllUsers({
-      type: "key-pressed",
-      payload: { keyNumber, color: fillColor },
-    });
-    console.log(`Key ${keyNumber} pressed`);
+    if (send) {
+      sendToAllUsers({
+        type: "key-pressed",
+        payload: { keyNumber, color: fillColor },
+      });
+    }
+    console.log(`Key ${keyNumber} pressed with color ${fillColor}`);
   };
 
   const handleMouseKey = (keyNumber, event) => {
@@ -47,7 +62,6 @@ const Piano = () => {
     for (let i = 0; i < 21; i++) {
       const x = startX + i * whiteKeyWidth;
       const keyNumber = i + 1;
-
       whiteKeys.push(
         <rect
           key={`white-${keyNumber}`}
@@ -55,7 +69,11 @@ const Piano = () => {
           y={30}
           width={whiteKeyWidth - 1}
           height={whiteKeyHeight}
-          fill={pressedKeys.has(keyNumber) ? fillColor : "#FFFFFF"}
+          fill={
+            pressedKeys.has(keyNumber)
+              ? pressedKeys.get(keyNumber) || fillColor
+              : "#FFFFFF"
+          }
           stroke="#D1D5DB"
           strokeWidth="1"
           className="cursor-pointer transition-all duration-150 "
@@ -94,7 +112,11 @@ const Piano = () => {
             y={30}
             width={blackKeyWidth}
             height={blackKeyHeight}
-            fill={pressedKeys.has(keyNumber) ? fillColor : "#1F2937"}
+            fill={
+              pressedKeys.has(keyNumber)
+                ? pressedKeys.get(keyNumber) || fillColor
+                : "#1F2937"
+            }
             className="cursor-pointer transition-all duration-150"
             onClick={(e) => handleMouseKey(keyNumber, e)}
           />,
@@ -169,10 +191,10 @@ const Piano = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentOctave]);
+  }, [currentOctave, fillColor]);
 
   return (
-    <div className="flex flex-col justify-center items-center">
+    <div tabIndex="1" className="flex flex-col justify-center items-center">
       <div className="px-2 pt-2 w-full">
         <svg
           viewBox={`0 0 ${21 * 40 + 40} 240`}
