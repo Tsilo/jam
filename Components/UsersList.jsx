@@ -9,11 +9,14 @@ const UsersList = () => {
           Array.from(users.entries()).map(([publicKey, user]) => (
             <li
               key={publicKey}
-              className="text-sm text-gray-800 p-2 bg-gray-50 rounded hover:bg-gray-100"
+              className="flex gap-1 text-sm items-centertext-gray-800 p-2 bg-gray-50 rounded hover:bg-gray-100"
             >
-              <div className="font-mono text-xs truncate">{publicKey}</div>
-              <div className="text-xs text-gray-500">
-                Connected at: {new Date(user.connectedAt).toLocaleTimeString()}
+              <span
+                style={{ backgroundColor: user.color || "#ccc" }}
+                className={`rounded-full  size-4`}
+              ></span>
+              <div className="font-mono text-xs truncate">
+                {user.username || publicKey}
               </div>
             </li>
           ))

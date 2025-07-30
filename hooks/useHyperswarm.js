@@ -3,11 +3,11 @@ import Hyperswarm from "hyperswarm";
 import hic from "hypercore-id-encoding";
 import { useUsersStore } from "../stores/useUsersStore";
 import { useMessagesStore } from "../stores/useMessagesStore";
+import { usePianoStore } from "../stores/usePianoStore.js";
 
 export const useHyperswarm = (
-  topic = "23337a386673415371314f315a6d386f504576774259624e32446a7377393752",
+  topic = "23337a386653415371314f315a6d386f504576774259624e32446a7377393752",
 ) => {
-  const { addUser, removeUser } = useUsersStore();
   const [loaded, setLoaded] = useState(false);
   const hyperswarm = useRef(null);
 
@@ -21,26 +21,67 @@ export const useHyperswarm = (
       }
     });
 
-    const handleConnection = (conn, info) => {
-      console.log("[connection joined]", info);
-      const publicKey = info.publicKey.toString("hex");
+    const requestUserInfo = (conn) => {
+      conn.write(
+        JSON.stringify({
+          type: "request-user-info",
+        }),
+      );
+    };
 
-      addUser(publicKey, {
+    const sendUserInfo = (conn, publicKey) => {
+      const me = useUsersStore.getState().me;
+      if (me) {
+        conn.write(
+          JSON.stringify({
+            type: "user-info",
+            publicKey: me.publicKey,
+            payload: {
+              username: me.username,
+              color: me.color,
+            },
+          }),
+        );
+      }
+    };
+
+    const handleConnection = (conn, info) => {
+      const publicKey = info.publicKey.toString("hex");
+      console.log("[connection joined]", conn, info, publicKey);
+
+      useUsersStore.getState().addUser(publicKey, {
         connection: conn,
         publicKey,
-        connectedAt: new Date().toISOString(),
       });
+
+      requestUserInfo(conn);
 
       conn.on("data", (data) => {
         try {
           const message = JSON.parse(data.toString());
-          console.log("[message received]", message);
+          console.log("[data received]", message);
 
-          if (message.type === "chat-message") {
-            useMessagesStore.getState().addMessage({
-              ...message.payload,
-              isCurrentUser: false,
-            });
+          switch (message.type) {
+            case "chat-message":
+              useMessagesStore.getState().addMessage({
+                ...message.payload,
+                isCurrentUser: false,
+              });
+              break;
+            case "key-pressed":
+              usePianoStore.getState().setPressedKey(message.payload);
+              break;
+            case "request-user-info":
+              sendUserInfo(conn);
+              break;
+            case "user-info":
+            case "username-updated":
+              useUsersStore
+                .getState()
+                .updateUser(message.publicKey, message.payload);
+              break;
+            default:
+              console.log("Unknown message type:", message.type);
           }
         } catch (error) {
           console.error("Error parsing message:", error);
@@ -57,7 +98,7 @@ export const useHyperswarm = (
 
       conn.on("close", () => {
         console.log(`[connection left] ${publicKey}`);
-        removeUser(publicKey);
+        useUsersStore.getState().removeUser(publicKey);
       });
     };
 
@@ -70,7 +111,7 @@ export const useHyperswarm = (
     await discovery.flushed();
     setLoaded(true);
     console.log("swarm loaded", discovery);
-  }, [topic, addUser, removeUser]);
+  }, [topic]);
 
   return {
     swarm: hyperswarm.current,

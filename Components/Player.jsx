@@ -1,462 +1,271 @@
-import { useEffect } from "react";
-import { useUsersStore } from "../stores/useUsersStore";
+import React, { useState, useEffect } from "react";
+import { useUsersStore } from "../stores/useUsersStore.js";
+import { usePianoStore } from "../stores/usePianoStore.js";
 
-const WHITE_KEYS = [
-  "a",
-  "s",
-  "d",
-  "f",
-  "g",
-  "h",
-  "j",
-  "k",
-  "l",
-  ";",
-  "'",
-  "z",
-  "x",
-  "c",
-  "v",
-  "b",
-  "n",
-  "m",
-  ",",
-  ".",
-  "/",
-];
+const Piano = () => {
+  const me = useUsersStore((state) => state.me);
+  const sendToAllUsers = useUsersStore((state) => state.sendToAllUsers);
+  const peerKeys = usePianoStore((state) => state.pressedKey);
+  console.log("received peer keys", peerKeys);
+  const fillColor = me?.color || "#3B82F6";
 
-const Player = () => {
-  const users = useUsersStore((state) => state.users);
-  //let users = [];
-  console.log(users);
-  const handleKey = (index) => {
-    console.log("Clicked note:", index);
-    users.size > 0 &&
-      users.values().forEach((user) => {
-        if (user.connection && user.connection.writable) {
-          user.connection.write(
-            JSON.stringify({
-              type: "piano-key",
-              payload: { keyIndex: index },
-            }),
-          );
-        }
+  const [pressedKeys, setPressedKeys] = useState(new Set());
+  const [currentOctave, setCurrentOctave] = useState(1);
+
+  const handleKey = (keyNumber) => {
+    // Add visual feedback
+    setPressedKeys((prev) => new Set(prev).add(keyNumber));
+
+    // Remove the visual effect after a short delay
+    setTimeout(() => {
+      setPressedKeys((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(keyNumber);
+        return newSet;
       });
+    }, 200);
+    sendToAllUsers({
+      type: "key-pressed",
+      payload: { keyNumber, color: fillColor },
+    });
+    console.log(`Key ${keyNumber} pressed`);
   };
-  const handleKeyDown = (e) => {
-    e.stopPropagation();
-    const keyIndex = WHITE_KEYS.indexOf(e.key.toLowerCase());
-    if (keyIndex !== -1) {
-      handleKey(keyIndex);
+
+  const handleMouseKey = (keyNumber, event) => {
+    event.preventDefault();
+    handleKey(keyNumber);
+  };
+
+  // Generate white keys for 3 octaves (C3 to B5)
+  const generateWhiteKeys = () => {
+    const whiteKeys = [];
+    const whiteKeyWidth = 40;
+    const whiteKeyHeight = 180;
+    const startX = 20;
+
+    // 3 octaves = 21 white keys (7 per octave)
+    for (let i = 0; i < 21; i++) {
+      const x = startX + i * whiteKeyWidth;
+      const keyNumber = i + 1;
+
+      whiteKeys.push(
+        <rect
+          key={`white-${keyNumber}`}
+          x={x}
+          y={30}
+          width={whiteKeyWidth - 1}
+          height={whiteKeyHeight}
+          fill={pressedKeys.has(keyNumber) ? fillColor : "#FFFFFF"}
+          stroke="#D1D5DB"
+          strokeWidth="1"
+          className="cursor-pointer transition-all duration-150 "
+          onClick={(e) => handleMouseKey(keyNumber, e)}
+        />,
+      );
     }
+
+    return whiteKeys;
   };
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
+  // Generate black keys for 3 octaves
+  const generateBlackKeys = () => {
+    const blackKeys = [];
+    const whiteKeyWidth = 40;
+    const blackKeyWidth = 24;
+    const blackKeyHeight = 120;
+    const startX = 20;
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+    // Black key pattern: 2-3-2-3... (skip after E and B)
+    const blackKeyPattern = [1, 2, 4, 5, 6]; // Positions within each octave
+
+    for (let octave = 0; octave < 3; octave++) {
+      blackKeyPattern.forEach((position, index) => {
+        const whiteKeyIndex = octave * 7 + position - 1;
+        const x =
+          startX +
+          whiteKeyIndex * whiteKeyWidth +
+          (whiteKeyWidth - blackKeyWidth / 2);
+        const keyNumber = 100 + octave * 5 + index; // Start black keys at 100
+
+        blackKeys.push(
+          <rect
+            key={`black-${keyNumber}`}
+            x={x}
+            y={30}
+            width={blackKeyWidth}
+            height={blackKeyHeight}
+            fill={pressedKeys.has(keyNumber) ? fillColor : "#1F2937"}
+            className="cursor-pointer transition-all duration-150"
+            onClick={(e) => handleMouseKey(keyNumber, e)}
+          />,
+        );
+      });
+    }
+
+    return blackKeys;
+  };
+
+  // Keyboard mapping with octave switching
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Octave switching
+      if (event.code === "Digit1") {
+        setCurrentOctave(1);
+        return;
+      }
+      if (event.code === "Digit2") {
+        setCurrentOctave(2);
+        return;
+      }
+      if (event.code === "Digit3") {
+        setCurrentOctave(3);
+        return;
+      }
+
+      const whiteKeyMap = {
+        KeyA: 0, // C
+        KeyS: 1, // D
+        KeyD: 2, // E
+        KeyF: 3, // F
+        KeyG: 4, // G
+        KeyH: 5, // A
+        KeyJ: 6, // B
+        KeyK: 7, // C (next octave start)
+        KeyL: 8, // D
+        Semicolon: 9, // E
+      };
+
+      const blackKeyMap = {
+        KeyW: 0, // C#
+        KeyE: 1, // D#
+        KeyT: 2, // F#
+        KeyY: 3, // G#
+        KeyU: 4, // A#
+        KeyI: 5, // C# (next octave)
+        KeyO: 6, // D#
+      };
+
+      const whiteKeyOffset = whiteKeyMap[event.code];
+      const blackKeyOffset = blackKeyMap[event.code];
+
+      let pianoKey = null;
+
+      if (whiteKeyOffset !== undefined && !event.repeat) {
+        // Calculate white key number based on current octave
+        pianoKey = (currentOctave - 1) * 7 + whiteKeyOffset + 1;
+        // Ensure we don't go beyond our 21 white keys
+        if (pianoKey <= 21) {
+          handleKey(pianoKey);
+        }
+      } else if (blackKeyOffset !== undefined && !event.repeat) {
+        // Calculate black key number based on current octave
+        pianoKey = 100 + (currentOctave - 1) * 5 + blackKeyOffset;
+        // Ensure we don't go beyond our 15 black keys
+        if (pianoKey <= 114) {
+          handleKey(pianoKey);
+        }
+      }
     };
-  }, [users]);
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentOctave]);
 
   return (
-    <div className="m-4">
-      <svg
-        className="w-full"
-        viewBox="245.46566772460938 390.672607421875 510.0000915527344 98"
-        width="510.0000915527344"
-        height="98"
-      >
-        <g transform="matrix(0.9999999999999999, 0, 0, 0.9999999999999999, 11.405020713806152, -59.30610656738281)">
-          <path
-            d="M 520.099976 331.700012 H 705.799973 V 435.600014 H 520.099976 V 331.700012 Z"
-            transform="matrix(2.7463648319244385, 0, 0, 0.9432149529457091, -1194.3236083984375, 137.1142578125)"
+    <div className="flex flex-col justify-center items-center">
+      <div className="px-2 pt-2 w-full">
+        <svg
+          viewBox={`0 0 ${21 * 40 + 40} 240`}
+          className="bg-gray-200 rounded-lg w-full"
+        >
+          {/* Piano body */}
+          <rect
+            x={10}
+            y={10}
+            width={21 * 40 + 20}
+            height={220}
+            fill="#fff"
+            rx={8}
+            className="drop-shadow-lg"
           />
-          <g transform="matrix(0.37804198265075684, 0, 0, 0.37804198265075684, 212.88131713867188, 364.820068359375)">
-            <g transform="matrix(1, 0, 0, 1, 0, 0)">
-              <g transform="matrix(1, 0, 0, 1, 0, 0)">
-                <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                  <g>
-                    <path
-                      onClick={() => handleKey(19)}
-                      d="M 833 151 H 862 V 275 H 833 V 151 Z"
-                      fill="#F7F7F7"
-                    />
-                  </g>
-                </g>
-                <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                  <path
-                    onClick={() => handleKey(18)}
-                    d="M 795 151 H 824 V 275 H 795 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -78.73779296875, 3.127492904663086)">
-                <g>
-                  <path
-                    onClick={() => handleKey(20)}
-                    d="M 833 151 H 862 V 275 H 833 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(17)}
-                  d="M 758 151 H 787 V 275 H 758 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(16)}
-                  d="M 721 151 H 750 V 275 H 721 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(15)}
-                  d="M 683 151 H 712 V 275 H 683 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(14)}
-                  d="M 646 151 H 675 V 275 H 646 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(13)}
-                  d="M 609 151 H 638 V 275 H 609 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(12)}
-                  d="M 571 151 H 600 V 275 H 571 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(11)}
-                  d="M 534 151 H 563 V 275 H 534 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(10)}
-                  d="M 497 151 H 526 V 275 H 497 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(9)}
-                  d="M 459 151 H 488 V 275 H 459 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(8)}
-                  d="M 422 151 H 451 V 275 H 422 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(7)}
-                  d="M 385 151 H 414 V 275 H 385 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(6)}
-                  d="M 347 151 H 376 V 275 H 347 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(5)}
-                  d="M 310 151 H 339 V 275 H 310 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(4)}
-                  d="M 273 151 H 302 V 275 H 273 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(3)}
-                  d="M 235 151 H 264 V 275 H 235 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(2)}
-                  d="M 198 151 H 227 V 275 H 198 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(1)}
-                  d="M 161 151 H 190 V 275 H 161 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 3.127493143081665)">
-                <path
-                  onClick={() => handleKey(0)}
-                  d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                  fill="#F7F7F7"
-                />
-              </g>
-            </g>
-            <g transform="matrix(1, 0, 0, 1, 0, 0)">
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68679809570312, 4.836658477783175)">
-                <g>
-                  <path d="M835,150v71.858c0,1.672-0.313,3.142-1.986,3.142h-7.909c-1.671,0-3.104-1.469-3.104-3.142V150" />
-                </g>
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M798,150v71.858c0,1.672-0.66,3.142-2.333,3.142h-7.909c-1.671,0-2.758-1.469-2.758-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M723,150v71.858c0,1.672-0.354,3.142-2.025,3.142h-7.91c-1.671,0-3.064-1.469-3.064-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M686,150v71.858c0,1.672-0.7,3.142-2.373,3.142h-7.909c-1.671,0-2.719-1.469-2.719-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M611,150v71.858c0,1.672-0.394,3.142-2.066,3.142h-7.909c-1.671,0-3.025-1.469-3.025-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M574,150v71.858c0,1.672-0.74,3.142-2.412,3.142h-7.909c-1.671,0-2.679-1.469-2.679-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M536,150v71.858c0,1.672-0.086,3.142-1.759,3.142h-7.909c-1.671,0-3.332-1.469-3.332-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M462,150v71.858c0,1.672-0.78,3.142-2.452,3.142h-7.909c-1.671,0-3.639-1.469-3.639-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M424,150v71.858c0,1.672-0.126,3.142-1.799,3.142h-7.909c-1.671,0-3.292-1.469-3.292-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M350,150v71.858c0,1.672-0.819,3.142-2.492,3.142h-7.909c-1.671,0-3.599-1.469-3.599-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M312,150v71.858c0,1.672-0.166,3.142-1.839,3.142h-7.909c-1.671,0-3.252-1.469-3.252-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M275,150v71.858c0,1.672-0.513,3.142-2.185,3.142h-7.909c-1.671,0-2.906-1.469-2.906-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M200,150v71.858c0,1.672-0.206,3.142-1.878,3.142h-7.909c-1.671,0-3.213-1.469-3.213-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -143.68601989746094, 4.836658477783175)">
-                <path d="M163,150v71.858c0,1.672-0.552,3.142-2.225,3.142h-7.909c-1.671,0-2.866-1.469-2.866-3.142V150" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, 1.709165334701538, -78.73856353759766, 4.836637496948214)">
-                <g>
-                  <path d="M835,150v71.858c0,1.672-0.313,3.142-1.986,3.142h-7.909c-1.671,0-3.104-1.469-3.104-3.142V150" />
-                </g>
-              </g>
-            </g>
-            <g transform="matrix(1, 0, 0, 1, 0, 0)">
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <g>
-                  <path
-                    d="M 833 151 H 862 V 275 H 833 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 795 151 H 824 V 275 H 795 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 758 151 H 787 V 275 H 758 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 721 151 H 750 V 275 H 721 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 683 151 H 712 V 275 H 683 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 646 151 H 675 V 275 H 646 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 609 151 H 638 V 275 H 609 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 571 151 H 600 V 275 H 571 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 534 151 H 563 V 275 H 534 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 497 151 H 526 V 275 H 497 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 459 151 H 488 V 275 H 459 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 422 151 H 451 V 275 H 422 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 385 151 H 414 V 275 H 385 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 347 151 H 376 V 275 H 347 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 310 151 H 339 V 275 H 310 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 273 151 H 302 V 275 H 273 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 235 151 H 264 V 275 H 235 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 198 151 H 227 V 275 H 198 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 161 151 H 190 V 275 H 161 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.16935491561889648, -143.68601989746094, 283.1797180175781)">
-                <path d="M 123 151 H 152 V 275 H 123 V 151 Z" fill="#F7F7F7" />
-              </g>
-              <g transform="matrix(1.709165334701538, 0, 0, -0.1693548709154129, -78.73762512207031, 283.1797180175781)">
-                <g>
-                  <path
-                    d="M 833 151 H 862 V 275 H 833 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-            </g>
-            <g transform="matrix(1, 0, 0, 1, 0, 0)">
-              <g transform="matrix(1, 0, 0, 1, 0, 206.9720611572266)">
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548858165741, 18.444475173950195, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 81.68362426757812, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 209.87100219726568, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 273.1101379394532, 76.20757293701172)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 338.05844116210943, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-              <g transform="matrix(1, 0, 0, 1, 446.0929870605469, 206.97207641601565)">
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548858165741, 18.444475173950195, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 81.68362426757812, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 209.87100219726568, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 273.1101379394532, 76.20757293701172)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 338.05844116210943, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-              <g transform="matrix(1, 0, 0, 1, 893.8926391601562, 206.97207641601565)">
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548858165741, 18.444475173950195, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 81.68362426757812, 76.20759582519531)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 209.87100219726568, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 273.1101379394532, 76.20757293701172)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-                <g transform="matrix(0.7662067413330078, 0, 0, -0.1693548709154129, 338.05844116210943, 76.20758056640625)">
-                  <path
-                    d="M 123 151 H 152 V 275 H 123 V 151 Z"
-                    fill="#F7F7F7"
-                  />
-                </g>
-              </g>
-            </g>
+
+          {/* White keys */}
+          {generateWhiteKeys()}
+
+          {/* Black keys (rendered on top) */}
+          {generateBlackKeys()}
+
+          {/* Key labels for first octave */}
+          <g className="fill-gray-400 text-xs pointer-events-none">
+            <text x={40} y={200} textAnchor="middle">
+              C
+            </text>
+            <text x={80} y={200} textAnchor="middle">
+              D
+            </text>
+            <text x={120} y={200} textAnchor="middle">
+              E
+            </text>
+            <text x={160} y={200} textAnchor="middle">
+              F
+            </text>
+            <text x={200} y={200} textAnchor="middle">
+              G
+            </text>
+            <text x={240} y={200} textAnchor="middle">
+              A
+            </text>
+            <text x={280} y={200} textAnchor="middle">
+              B
+            </text>
           </g>
-        </g>
-      </svg>
+
+          {/* Octave markers with highlighting */}
+          <g className="fill-gray-500 text-sm">
+            <text
+              x={160}
+              y={225}
+              textAnchor="middle"
+              className={currentOctave === 1 ? "fill-blue-500 font-bold" : ""}
+            >
+              Octave 1
+            </text>
+            <text
+              x={440}
+              y={225}
+              textAnchor="middle"
+              className={currentOctave === 2 ? "fill-blue-500 font-bold" : ""}
+            >
+              Octave 2
+            </text>
+            <text
+              x={720}
+              y={225}
+              textAnchor="middle"
+              className={currentOctave === 3 ? "fill-blue-500 font-bold" : ""}
+            >
+              Octave 3
+            </text>
+          </g>
+        </svg>
+      </div>
+
+      {/* Instructions */}
+      <div className="my-1 text-center text-gray-300 flex items-center gap-4 text-xs">
+        <p className="">Keyboard Controls:</p>
+
+        <span className="bg-gray-800 px-2 py-1 rounded">
+          A S D F G H J K L ;
+        </span>
+        <span className="bg-gray-800 px-2 py-1 rounded">
+          W E T Y U I O (black keys)
+        </span>
+        <span className="bg-blue-600 px-2 py-1 rounded">
+          1 2 3 (octave switch)
+        </span>
+      </div>
     </div>
   );
 };
 
-export default Player;
+export default Piano;

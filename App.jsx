@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import Player from "./Components/Player.jsx";
 import UsersList from "./Components/UsersList.jsx";
 import UsernameModal from "./Components/UsernameModal.jsx";
@@ -6,14 +6,30 @@ import Chat from "./Components/Chat/Chat.jsx";
 import { useHyperswarm } from "./hooks/useHyperswarm";
 import Loader from "./Components/Loader.jsx";
 import { useUsersStore } from "./stores/useUsersStore.js";
+import { getRandomHexColor } from "./utils/colors.js";
 
 export default function App() {
   const { loaded, swarm } = useHyperswarm();
-  const { setMe } = useUsersStore();
   useEffect(() => {
     if (loaded && swarm) {
-      setMe({
+      let userColors = useUsersStore
+        .getState()
+        .users.values()
+        .map((el) => el.color)
+        .filter(Boolean);
+
+      let color = getRandomHexColor(Array.from(userColors));
+      let userData = {
+        color: color,
         publicKey: swarm?.keyPair?.publicKey?.toString("hex") || "no-key",
+      };
+      useUsersStore.getState().setMe(userData);
+      useUsersStore.getState().sendToAllUsers({
+        type: "user-info",
+        publicKey: userData.publicKey,
+        payload: {
+          color: userData.color,
+        },
       });
     }
   }, [loaded, swarm]);

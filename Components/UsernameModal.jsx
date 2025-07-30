@@ -3,7 +3,9 @@ import Button from "./ui/Button.jsx";
 import { useUsersStore } from "../stores/useUsersStore.js";
 
 const UsernameModal = () => {
-  const { me, setMe } = useUsersStore();
+  const me = useUsersStore((state) => state.me);
+  const setMe = useUsersStore((state) => state.setMe);
+  const sendToAllUsers = useUsersStore((state) => state.sendToAllUsers);
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
 
@@ -18,7 +20,12 @@ const UsernameModal = () => {
     if (name.trim()) {
       setMe({
         ...me,
-        name: name,
+        username: name,
+      });
+      sendToAllUsers({
+        type: "username-updated",
+        payload: { username: name },
+        publicKey: me.publicKey,
       });
       closeModal();
     }
@@ -30,7 +37,7 @@ const UsernameModal = () => {
         onClick={openModal}
         className=" px-2 py-1 flex items-center gap-1.5"
       >
-        {me.name || "Add Username"}
+        {me?.username || "Add Username"}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="18"

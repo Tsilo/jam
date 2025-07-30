@@ -6,7 +6,7 @@ import { useUsersStore } from "../../stores/useUsersStore";
 const TextInput = () => {
   const [message, setMessage] = useState("");
   const addMessage = useMessagesStore((state) => state.addMessage);
-  const users = useUsersStore((state) => state.users);
+  const sendToAllUsers = useUsersStore((state) => state.sendToAllUsers);
   const me = useUsersStore((state) => state.me);
 
   const handleSubmit = (e) => {
@@ -16,20 +16,15 @@ const TextInput = () => {
     const newMessage = {
       text: message,
       isCurrentUser: true,
-      sender: me.name || me.publicKey,
+      sender: me.username || me.publicKey,
+      publicKey: me.publicKey,
       timestamp: new Date().toISOString(),
     };
-    addMessage(newMessage);
 
-    users.forEach((user) => {
-      if (user.connection && user.connection.writable) {
-        user.connection.write(
-          JSON.stringify({
-            type: "chat-message",
-            payload: newMessage,
-          }),
-        );
-      }
+    addMessage(newMessage);
+    sendToAllUsers({
+      type: "chat-message",
+      payload: newMessage,
     });
 
     setMessage("");
