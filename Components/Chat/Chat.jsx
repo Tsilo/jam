@@ -2,11 +2,9 @@ import React from "react";
 import Message from "./Message.jsx";
 import TextInput from "./TextInput.jsx";
 import { useMessagesStore } from "../../stores/useMessagesStore";
-import { useUsersStore } from "../../stores/useUsersStore.js";
 
 const Chat = () => {
   const messages = useMessagesStore((state) => state.messages);
-  const me = useUsersStore((state) => state.me);
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto flex flex-col-reverse p-4 space-y-2">

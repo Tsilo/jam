@@ -8,7 +8,6 @@ export const useMessagesStore = create((set) => ({
         {
           ...message,
           id: Date.now(),
-          timestamp: new Date().toISOString(),
         },
         ...state.messages,
       ],

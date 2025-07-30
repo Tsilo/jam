@@ -36,7 +36,7 @@ const Piano = () => {
         newSet.delete(keyNumber);
         return newSet;
       });
-    }, 200);
+    }, 300);
     if (send) {
       sendToAllUsers({
         type: "key-pressed",
@@ -48,7 +48,7 @@ const Piano = () => {
 
   const handleMouseKey = (keyNumber, event) => {
     event.preventDefault();
-    handleKey(keyNumber);
+    handleKey(keyNumber, fillColor);
   };
 
   // Generate white keys for 3 octaves (C3 to B5)

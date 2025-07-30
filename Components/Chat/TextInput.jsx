@@ -18,7 +18,6 @@ const TextInput = () => {
       isCurrentUser: true,
       sender: me.username || me.publicKey,
       publicKey: me.publicKey,
-      timestamp: new Date().toISOString(),
     };
 
     addMessage(newMessage);
